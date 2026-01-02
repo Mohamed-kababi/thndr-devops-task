@@ -12,6 +12,6 @@ echo "Running tests..."
 # Add your test commands here
 # For now, we just check if the app can start
 export PYTHONPATH=.
-python -c "from app.main import app; print('App imports successfully')"
+poetry run python -c "from app.main import app; print('App imports successfully')"
 
 echo "Tests completed successfully"
