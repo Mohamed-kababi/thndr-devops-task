@@ -54,8 +54,10 @@ else
     # Install Istio if not already installed
     if ! kubectl api-resources | grep -q "gateways.networking.istio.io"; then
         echo "Installing Istio..."
-        curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.20.0 sh -
-        ./istio-1.20.0/bin/istioctl install --set profile=minimal -y
+        curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.24.0 sh -
+        ./istio-1.24.0/bin/istioctl install --set profile=minimal -y --readiness-timeout 10m0s
+        echo "Waiting for Istiod to be ready..."
+        kubectl wait --for=condition=available --timeout=600s deployment/istiod -n istio-system
     fi
 
     # Apply Istio configurations
