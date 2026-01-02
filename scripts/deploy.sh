@@ -54,7 +54,9 @@ else
     echo "Applying namespace..."
     kubectl apply -f k8s/namespace.yaml
 
-    echo "Applying deployment..."
+    # Delete old deployment to avoid rolling update issues
+    echo "Recreating deployment..."
+    kubectl delete deployment thndr-api -n thndr-app --ignore-not-found=true
     kubectl apply -f k8s/deployment.yaml
 
     echo "Applying service..."
@@ -65,7 +67,7 @@ else
 
     # Wait for app deployment to be ready
     echo "Waiting for app deployment..."
-    kubectl rollout status deployment/thndr-api -n thndr-app --timeout=300s
+    kubectl rollout status deployment/thndr-api -n thndr-app --timeout=180s
 
     # Install Istio if not already installed
     if ! kubectl get namespace istio-system &>/dev/null; then
