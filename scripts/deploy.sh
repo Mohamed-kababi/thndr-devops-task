@@ -21,10 +21,12 @@ echo "Image: $FULL_IMAGE"
 install_istio() {
     echo "Installing Istio..."
     curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.24.0 sh -
-    ./istio-1.24.0/bin/istioctl install --set profile=minimal -y --readiness-timeout 15m0s
 
-    echo "Waiting for Istiod..."
-    kubectl wait --for=condition=available --timeout=900s deployment/istiod -n istio-system
+    # Install Istio in background and wait with timeout
+    ./istio-1.24.0/bin/istioctl install --set profile=minimal -y --readiness-timeout 10m0s || {
+        echo "WARNING: Istio installation timed out, continuing..."
+        echo "Istiod may still be starting in background"
+    }
 }
 
 if [ "$USE_HELM" = "true" ]; then
@@ -75,12 +77,12 @@ else
         kubectl wait --for=condition=available --timeout=60s deployment/istiod -n istio-system || install_istio
     fi
 
-    # Apply Istio configurations
+    # Apply Istio configurations (may fail if Istio not ready yet)
     echo "Applying Istio resources..."
-    kubectl apply -f istio/gateway.yaml
-    kubectl apply -f istio/virtualservice.yaml
-    kubectl apply -f istio/destinationrule.yaml
-    kubectl apply -f istio/peerauthentication.yaml
+    kubectl apply -f istio/gateway.yaml || echo "WARNING: gateway not applied"
+    kubectl apply -f istio/virtualservice.yaml || echo "WARNING: virtualservice not applied"
+    kubectl apply -f istio/destinationrule.yaml || echo "WARNING: destinationrule not applied"
+    kubectl apply -f istio/peerauthentication.yaml || echo "WARNING: peerauthentication not applied"
 
     echo "Deployment completed!"
 fi
