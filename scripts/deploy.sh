@@ -51,18 +51,16 @@ else
     echo "Applying ingress..."
     kubectl apply -f k8s/ingress.yaml
 
-    # Apply Istio configurations
-    echo "Applying Istio gateway..."
-    kubectl apply -f istio/gateway.yaml
-
-    echo "Applying Istio virtualservice..."
-    kubectl apply -f istio/virtualservice.yaml
-
-    echo "Applying Istio destinationrule..."
-    kubectl apply -f istio/destinationrule.yaml
-
-    echo "Applying Istio peerauthentication..."
-    kubectl apply -f istio/peerauthentication.yaml
+    # Apply Istio configurations (optional - skip if Istio not installed)
+    if kubectl api-resources | grep -q "gateways.networking.istio.io"; then
+        echo "Istio detected, applying Istio resources..."
+        kubectl apply -f istio/gateway.yaml
+        kubectl apply -f istio/virtualservice.yaml
+        kubectl apply -f istio/destinationrule.yaml
+        kubectl apply -f istio/peerauthentication.yaml
+    else
+        echo "Istio not installed, skipping Istio resources"
+    fi
 
     echo "kubectl deployment completed successfully!"
 fi
