@@ -56,24 +56,21 @@ jobs:
             sleep 5
           done
 
-      - name: Configure SonarQube
+      - name: Configure SonarQube and run scan
         run: |
           curl -u admin:admin -X POST "http://localhost:9000/api/settings/set?key=sonar.forceAuthentication&value=false"
-          curl -u admin:admin -X POST "http://localhost:9000/api/projects/create?name=thndr-api&project=thndr-api"
-
-      - name: Install SonarQube Scanner
-        run: |
+          curl -u admin:admin -X POST "http://localhost:9000/api/projects/create?name=thndr-api&project=thndr-api" || true
+          curl -u admin:admin -X POST "http://localhost:9000/api/permissions/add_group?projectKey=thndr-api&groupName=Anyone&permission=scan"
+          curl -u admin:admin -X POST "http://localhost:9000/api/permissions/add_group?projectKey=thndr-api&groupName=Anyone&permission=user"
           wget -q https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
           unzip -q sonar-scanner-cli-5.0.1.3006-linux.zip
-          echo "$PWD/sonar-scanner-5.0.1.3006-linux/bin" >> $GITHUB_PATH
-
-      - name: Run SonarQube Scan
-        run: |
-          sonar-scanner \
+          ./sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner \
             -Dsonar.projectKey=thndr-api \
             -Dsonar.projectName=thndr-api \
             -Dsonar.sources=app \
             -Dsonar.host.url=http://localhost:9000 \
+            -Dsonar.login=admin \
+            -Dsonar.password=admin \
             -Dsonar.python.version=3.12
 
       - name: Stop SonarQube
