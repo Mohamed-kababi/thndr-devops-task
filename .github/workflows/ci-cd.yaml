@@ -37,32 +37,23 @@ jobs:
     name: SonarQube SAST Scan
     runs-on: ubuntu-latest
     needs: test
-    services:
-      sonarqube:
-        image: sonarqube:lts-community
-        ports:
-          - 9000:9000
-        options: >-
-          --health-cmd="curl -f http://localhost:9000/api/system/status || exit 1"
-          --health-interval=30s
-          --health-timeout=10s
-          --health-retries=10
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      - name: Wait for SonarQube to be ready
+      - name: Start SonarQube
         run: |
+          docker run -d --name sonarqube -p 9000:9000 sonarqube:lts-community
           echo "Waiting for SonarQube to start..."
-          for i in {1..30}; do
+          for i in {1..60}; do
             if curl -s http://localhost:9000/api/system/status | grep -q '"status":"UP"'; then
               echo "SonarQube is ready"
               break
             fi
-            echo "Waiting... ($i/30)"
-            sleep 10
+            echo "Waiting... ($i/60)"
+            sleep 5
           done
 
       - name: Create SonarQube project and token
@@ -87,6 +78,10 @@ jobs:
             -Dsonar.host.url=http://localhost:9000 \
             -Dsonar.token=${{ steps.sonar-setup.outputs.SONAR_TOKEN }} \
             -Dsonar.python.version=3.12
+
+      - name: Stop SonarQube
+        if: always()
+        run: docker stop sonarqube || true
 
   build:
     name: Build Docker Image
