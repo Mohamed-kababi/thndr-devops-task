@@ -6,7 +6,7 @@ set -e
 
 echo "Installing dependencies..."
 pip install poetry
-poetry install
+poetry install --no-root
 
 echo "Running tests..."
 # Add your test commands here
