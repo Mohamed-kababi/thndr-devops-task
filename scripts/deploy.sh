@@ -54,19 +54,19 @@ else
     echo "Applying namespace..."
     kubectl apply -f k8s/namespace.yaml
 
-    # Delete old deployments to avoid rolling update issues
-    echo "Recreating deployments..."
-    kubectl delete deployment thndr-api -n thndr-app --ignore-not-found=true
-    kubectl delete deployment thndr-api-canary -n thndr-app --ignore-not-found=true
-
-    # Deploy stable version (v1)
+    # Deploy stable version (v1) with force replace
     echo "Deploying stable version..."
-    kubectl apply -f k8s/deployment.yaml
+    kubectl apply -f k8s/deployment.yaml --force
 
-    # Deploy canary version (v2)
+    # Deploy canary version (v2) with force replace
     echo "Deploying canary version..."
     sed -i "s|image:.*|image: $FULL_IMAGE|g" k8s/deployment-canary.yaml
-    kubectl apply -f k8s/deployment-canary.yaml
+    kubectl apply -f k8s/deployment-canary.yaml --force
+
+    # Force restart to pick up new image
+    echo "Restarting deployments..."
+    kubectl rollout restart deployment/thndr-api -n thndr-app
+    kubectl rollout restart deployment/thndr-api-canary -n thndr-app
 
     echo "Applying service..."
     kubectl apply -f k8s/service.yaml
