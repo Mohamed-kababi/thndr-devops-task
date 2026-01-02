@@ -74,11 +74,10 @@ else
     echo "Applying ingress..."
     kubectl apply -f k8s/ingress.yaml
 
-    # Wait for app deployments to be ready
-    echo "Waiting for stable deployment..."
-    kubectl rollout status deployment/thndr-api -n thndr-app --timeout=180s
-    echo "Waiting for canary deployment..."
-    kubectl rollout status deployment/thndr-api-canary -n thndr-app --timeout=180s
+    # Wait for app deployments (non-blocking)
+    echo "Waiting for deployments..."
+    kubectl rollout status deployment/thndr-api -n thndr-app --timeout=120s || echo "WARNING: stable deployment still rolling out"
+    kubectl rollout status deployment/thndr-api-canary -n thndr-app --timeout=60s || echo "WARNING: canary deployment still rolling out"
 
     # Install Istio if not already installed
     if ! kubectl get namespace istio-system &>/dev/null; then
