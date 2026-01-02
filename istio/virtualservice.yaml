@@ -1,4 +1,4 @@
-# Istio VirtualService for routing
+# Istio VirtualService for canary routing
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
@@ -14,8 +14,17 @@ spec:
         - uri:
             prefix: /
       route:
+        # Stable version (v1) - 90% traffic
         - destination:
             host: thndr-api-service
+            subset: stable
             port:
               number: 80
-          weight: 100
+          weight: 90
+        # Canary version (v2) - 10% traffic
+        - destination:
+            host: thndr-api-service
+            subset: canary
+            port:
+              number: 80
+          weight: 10

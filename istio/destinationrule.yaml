@@ -1,4 +1,4 @@
-# Istio DestinationRule for traffic policy
+# Istio DestinationRule for traffic policy and canary subsets
 apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
 metadata:
@@ -9,3 +9,10 @@ spec:
   trafficPolicy:
     tls:
       mode: ISTIO_MUTUAL
+  subsets:
+    - name: stable
+      labels:
+        version: v1
+    - name: canary
+      labels:
+        version: v2

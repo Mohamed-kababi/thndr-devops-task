@@ -1,0 +1,45 @@
+# Canary Deployment for thndr-api application
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thndr-api-canary
+  namespace: thndr-app
+  labels:
+    app: thndr-api
+    version: v2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: thndr-api
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: thndr-api
+        version: v2
+    spec:
+      containers:
+        - name: thndr-api
+          image: YOUR_DOCKERHUB_USERNAME/thndr-api:latest
+          ports:
+            - containerPort: 8000
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 3

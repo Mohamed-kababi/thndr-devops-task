@@ -54,10 +54,19 @@ else
     echo "Applying namespace..."
     kubectl apply -f k8s/namespace.yaml
 
-    # Delete old deployment to avoid rolling update issues
-    echo "Recreating deployment..."
+    # Delete old deployments to avoid rolling update issues
+    echo "Recreating deployments..."
     kubectl delete deployment thndr-api -n thndr-app --ignore-not-found=true
+    kubectl delete deployment thndr-api-canary -n thndr-app --ignore-not-found=true
+
+    # Deploy stable version (v1)
+    echo "Deploying stable version..."
     kubectl apply -f k8s/deployment.yaml
+
+    # Deploy canary version (v2)
+    echo "Deploying canary version..."
+    sed -i "s|image:.*|image: $FULL_IMAGE|g" k8s/deployment-canary.yaml
+    kubectl apply -f k8s/deployment-canary.yaml
 
     echo "Applying service..."
     kubectl apply -f k8s/service.yaml
@@ -65,9 +74,11 @@ else
     echo "Applying ingress..."
     kubectl apply -f k8s/ingress.yaml
 
-    # Wait for app deployment to be ready
-    echo "Waiting for app deployment..."
+    # Wait for app deployments to be ready
+    echo "Waiting for stable deployment..."
     kubectl rollout status deployment/thndr-api -n thndr-app --timeout=180s
+    echo "Waiting for canary deployment..."
+    kubectl rollout status deployment/thndr-api-canary -n thndr-app --timeout=180s
 
     # Install Istio if not already installed
     if ! kubectl get namespace istio-system &>/dev/null; then
@@ -86,11 +97,26 @@ else
     kubectl apply -f istio/destinationrule.yaml || echo "WARNING: destinationrule not applied"
     kubectl apply -f istio/peerauthentication.yaml || echo "WARNING: peerauthentication not applied"
 
+    # Deploy monitoring stack (Prometheus & Grafana)
+    echo "Deploying monitoring stack..."
+    kubectl apply -f monitoring/namespace.yaml || echo "WARNING: monitoring namespace not applied"
+    kubectl apply -f monitoring/prometheus-config.yaml || echo "WARNING: prometheus config not applied"
+    kubectl apply -f monitoring/prometheus-deployment.yaml || echo "WARNING: prometheus not applied"
+    kubectl apply -f monitoring/grafana-deployment.yaml || echo "WARNING: grafana not applied"
+
     echo "Deployment completed!"
 fi
 
 # Show status
 echo ""
 echo "=== Deployment Status ==="
+echo "App Pods:"
 kubectl get pods -n thndr-app
+echo ""
+echo "App Services:"
 kubectl get services -n thndr-app
+echo ""
+echo "Canary Traffic Split: 90% stable (v1) / 10% canary (v2)"
+echo ""
+echo "Monitoring Pods:"
+kubectl get pods -n monitoring 2>/dev/null || echo "Monitoring namespace not ready"
