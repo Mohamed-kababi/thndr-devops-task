@@ -56,12 +56,10 @@ jobs:
             sleep 5
           done
 
-      - name: Create SonarQube project and token
-        id: sonar-setup
+      - name: Configure SonarQube
         run: |
+          curl -u admin:admin -X POST "http://localhost:9000/api/settings/set?key=sonar.forceAuthentication&value=false"
           curl -u admin:admin -X POST "http://localhost:9000/api/projects/create?name=thndr-api&project=thndr-api"
-          TOKEN=$(curl -u admin:admin -X POST "http://localhost:9000/api/user_tokens/generate?name=ci-token" | jq -r '.token')
-          echo "SONAR_TOKEN=$TOKEN" >> $GITHUB_OUTPUT
 
       - name: Install SonarQube Scanner
         run: |
@@ -76,7 +74,6 @@ jobs:
             -Dsonar.projectName=thndr-api \
             -Dsonar.sources=app \
             -Dsonar.host.url=http://localhost:9000 \
-            -Dsonar.token=${{ steps.sonar-setup.outputs.SONAR_TOKEN }} \
             -Dsonar.python.version=3.12
 
       - name: Stop SonarQube
