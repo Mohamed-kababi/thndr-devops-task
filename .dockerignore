@@ -1,0 +1,20 @@
+# Docker ignore file
+.git
+.gitignore
+.DS_Store
+__pycache__
+*.pyc
+*.pyo
+.env
+*.db
+*.sqlite
+db.sqlite
+.venv
+venv
+*.md
+!README.md
+.github
+k8s
+istio
+monitoring
+scripts

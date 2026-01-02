@@ -1,0 +1,20 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: thndr-virtualservice
+  namespace: thndr-app
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - thndr-gateway
+  http:
+    - match:
+        - uri:
+            prefix: /
+      route:
+        - destination:
+            host: thndr-api-service
+            port:
+              number: 80
+          weight: 100

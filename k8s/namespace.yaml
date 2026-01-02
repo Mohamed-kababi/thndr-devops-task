@@ -1,0 +1,7 @@
+# Namespace for the thndr application
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: thndr-app
+  labels:
+    istio-injection: enabled

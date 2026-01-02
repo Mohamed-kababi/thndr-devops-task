@@ -1,0 +1,173 @@
+# CI/CD Pipeline for Thndr DevOps Task
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  IMAGE_TAG: ${{ github.sha }}
+  # Set to 'true' to use Helm deployment, 'false' for kubectl deployment
+  USE_HELM: 'false'
+
+jobs:
+  # Job 1: Run Tests
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Run tests
+        run: ./scripts/test.sh
+
+  # Job 2: SonarQube SAST Scan
+  sonarqube-sast:
+    name: SonarQube SAST Scan
+    runs-on: ubuntu-latest
+    needs: test
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.projectKey=thndr-api
+            -Dsonar.projectName=thndr-api
+            -Dsonar.sources=app
+            -Dsonar.python.version=3.12
+
+  # Job 3: Build Docker Image
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [test, sonarqube-sast]
+    if: always() && needs.test.result == 'success'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Docker image
+        run: ./scripts/build.sh ${{ secrets.DOCKER_USERNAME }} ${{ github.sha }}
+
+      - name: Push Docker image
+        run: ./scripts/push.sh ${{ secrets.DOCKER_USERNAME }} ${{ github.sha }}
+
+  # Job 4: Security Scan with Trivy
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Pull Docker image
+        run: docker pull ${{ secrets.DOCKER_USERNAME }}/thndr-api:${{ github.sha }}
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ secrets.DOCKER_USERNAME }}/thndr-api:${{ github.sha }}'
+          format: 'table'
+          exit-code: '0'
+          severity: 'HIGH,CRITICAL'
+
+  # Job 5: CIS Benchmark Scan for Amazon Linux
+  cis-benchmark:
+    name: CIS Benchmark Scan
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Pull Docker image
+        run: docker pull ${{ secrets.DOCKER_USERNAME }}/thndr-api:${{ github.sha }}
+
+      - name: Run CIS Benchmark scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ secrets.DOCKER_USERNAME }}/thndr-api:${{ github.sha }}'
+          format: 'table'
+          exit-code: '0'
+          severity: 'HIGH,CRITICAL'
+          scanners: 'vuln,config'
+
+  # Job 6: Deploy to Kubernetes
+  deploy:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+    needs: [security-scan, cis-benchmark]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Update kubeconfig for EKS
+        run: aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }} --region ${{ secrets.AWS_REGION }}
+
+      - name: Install Helm
+        if: env.USE_HELM == 'true'
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.13.0'
+
+      - name: Deploy to Kubernetes
+        run: ./scripts/deploy.sh ${{ secrets.DOCKER_USERNAME }} ${{ github.sha }} ${{ env.USE_HELM }}

@@ -1,0 +1,11 @@
+# Istio DestinationRule for traffic policy
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: thndr-destinationrule
+  namespace: thndr-app
+spec:
+  host: thndr-api-service
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL

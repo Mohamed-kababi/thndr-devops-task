@@ -1,0 +1,9 @@
+# Istio PeerAuthentication for mTLS
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: thndr-mtls
+  namespace: thndr-app
+spec:
+  mtls:
+    mode: STRICT
